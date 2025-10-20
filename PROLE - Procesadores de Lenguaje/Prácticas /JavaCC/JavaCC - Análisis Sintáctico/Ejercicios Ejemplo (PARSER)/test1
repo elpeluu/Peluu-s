@@ -1,0 +1,57 @@
+options
+{
+  STATIC=false;
+  DEBUG_PARSER=true;
+}
+
+PARSER_BEGIN(parEqui)
+
+public class parEqui{
+
+    /*
+     * A test
+     */
+    public static void main (String[] args) throws Exception {
+	parEqui parser = new parEqui(System.in);
+	parser.parse ();
+    }
+
+}
+
+PARSER_END(parEqui)
+
+/*
+ * The terminals
+ */
+
+TOKEN : {
+  <OPEN: "(">
+| <CLOSE: ")">
+}
+
+SKIP : {
+ " "
+}
+
+/*
+ * The nonterminals
+ */
+
+void parse () : {} {
+  balanced () 
+  "."
+}
+
+void balanced () : {} {
+  (
+    <OPEN>
+    balanced () 
+    <CLOSE> 
+  )*
+}
+
+
+
+
+
+
