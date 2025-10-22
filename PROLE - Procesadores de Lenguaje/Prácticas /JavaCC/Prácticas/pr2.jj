@@ -1,0 +1,101 @@
+PARSER_BEGIN(pr2)
+
+public class pr2{
+
+		public static void main(String args[]) throws ParseException{
+			
+			if(args.length != 1){
+				pr2 parser = new pr2 (System.in);
+				parser.list_sntncs();
+			} else{
+				
+				try{
+					java.io.FileReader fr = new java.io.FileReader(args[0]);
+					Token tk; 
+				
+					pr2 parse = new pr2(fr);
+					parser.list_sntncs();
+
+					fr.close();
+				}catch(java.io.IOException e){	
+					System.out.println("Error al abrir el archivo: " + e.getMessage());
+					
+				}catch(TokenMgrError x){
+					System.out.println("Error de token.");
+					throw x;
+				}
+
+			} // Fin del else if 
+
+		} // Fin del main 
+
+}
+
+PARSER_END(pr2)
+
+// Definición de tokens (terminales)
+SKIP:
+{
+	" " | "\t" | "\n" | "\r"
+|	"//" ~[\n\r]*
+|	"/*" (~["*"])* "*/"
+}
+
+TOKEN:
+{
+	<NUM: (["0" - "9"])+>
+|	<ID: (["a" - "z", "A" - "Z", "_"])(["a" - "z", "A" - "Z", "_", "0" - "9"])*>
+}
+
+// Definicion de producciones (no terminales)
+void list_sntncs():{}
+{
+	sntnc() ";" (list_sntncs())?
+}
+
+void sntnc() : {} {
+	sel_stmt()
+|	iter_stmt()
+|	assig_stmt()
+|	print_stmt()
+}
+
+void print_stmt() : {} {
+	"imprimir" "(" expr() ")"
+}
+
+void sel_stmt() : {} {
+	"si" "(" expr() ")" "{" list_sntncs() "}" ("sino" "{" list_sntncs() "}")?
+}
+
+void iter_stmt() : {} {
+	"mientras" "(" expr() ")" "{" list_sntncs() "}"
+| 	"hacer" "{" list_sntncs() "}" "mientras" "(" expr() ")"
+}
+
+void assig_stmt() : 
+{Token tk} 
+{
+	tk=<ID> ("=" | "+=" | "-=" | "*=" | "/=") expr()
+}
+
+void expr() : {} {
+	mul_expr() (("+" | "-") mul_expr())*
+}
+
+void mult_expr() : {} {
+	val() (("*" | "/") val())*
+}
+
+void val() : 
+{Token tk}
+{
+	tk=<NUM>
+|	tk=<ID>
+| 	"(" expr() ")"
+}
+
+
+
+
+
