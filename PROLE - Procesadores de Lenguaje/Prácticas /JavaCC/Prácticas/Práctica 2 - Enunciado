@@ -31,14 +31,17 @@ Consecuente: sntnc ';' list_sntncs
           o: sntnc ';'
 
 Antecedente: sntnc
-Consecuente: sel_stmt o iter_stmt o assig_stmt o print_stmt
+Consecuente: sel_stmt 
+          o: iter_stmt 
+          o: assig_stmt
+          o: print_stmt
 
 Antecedente: print_stmt
 Consecuente: 'imprimir' '(' expr ')'
 
 Antecedente: sel_stmt
 Consecuente: 'si' '(' expr ')' '{' list_sntncs '}'
-          o:  'si' '(' expr ')' '{' list_sntncs '}' 'sino' '{' list_sntncs '}'
+          o: 'si' '(' expr ')' '{' list_sntncs '}' 'sino' '{' list_sntncs '}'
 
 Antecedente: iter_stmt
 Consecuente: 'mientras' '(' expr ')' '{' list_sntncs '}'
@@ -54,10 +57,11 @@ Consecuente: ID '=' expr
 Antecedente: expr
 Consecuente: mult_expr '+' expr
           o: mult_expr '-' expr
-          o: expr
+          o: mult_expr
 
-Antecedente: mult_expr -> val '*' mult_expr
+Antecedente: mult_expr
 Consecuente: val '/' mult_expr
+          o: val '*' mult_expr
           o: val
 
 Antecedente: val
@@ -91,6 +95,7 @@ vAriAble=(0-1+2)* x - (_i);
 
 Debería mostrar (excepto quizá el número de las etiquetas):
 
+    valori _i
 	mete 0
 	asigna
 	valord _i
@@ -138,6 +143,9 @@ hacer{var_do*=5;}mientras(x);
 
 Debería mostrar (excepto quizá el número de las etiquetas):
 
+    valori a
+    mete 10
+    asigna
 	valord a
 	sifalsovea LBL0
 	valori a
