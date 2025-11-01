@@ -1,4 +1,5 @@
 // Autor: Diego Garda Porto
+// Version: 01/11/2025
 
 options{}
 
@@ -76,19 +77,13 @@ void print_stmt() : {} {
 	"imprimir" "(" expr() ")" 		{System.out.println("	print");}
 }
 
-void sel_stmt() :
-{
-	 int etiEnd = nEtiqueta+1;		// Etiqueta en el END del SI
-}
+void sel_stmt() : {}
  {
-	
-	"si" "(" expr() ")" 				{System.out.println("	sifalsovea LBL" + nEtiqueta);} 			// Si es falso, se ejecuta la parte del sino
+	"si" "(" expr() ")" 				{System.out.println("	sifalsovea LBL" + nEtiqueta);} 			// Si es falso, se ejecuta la parte fuera del SI
 	"{" list_sntncs() "}" 						
-	("sino"					 		{System.out.println("	vea LBL" + etiEnd);						// Tras hacer el SI se salta a la etiqueta posterior al SINO
-									 System.out.println("LBL" + (nEtiqueta++));}						// Etiqueta donde comienza la parte del SINO
-	"{" list_sntncs() "}")?			{System.out.println("LBL" + nEtiqueta++);}						// Etiqueta donde continua el programa tras todo el SI-SINO.
-									
-	
+	("sino"					 		{System.out.println("	vea LBL" + (nEtiqueta+1));				// Tras hacer el SI y habiendo SINO se salta para omitir la parte del SINO
+									 System.out.println("LBL" + (nEtiqueta++));}					// Etiqueta donde comienza la parte del SINO. Se incrementa posteriormente para actualizar al valor de la siguiente etiqueta
+	"{" list_sntncs() "}")?			{System.out.println("LBL" + nEtiqueta++);}						// Etiqueta donde continua el programa tras todo el SI-SINO. Se incrementa posteriormente para actualizar al valor de la siguiente etiqueta							
 }
 
 void iter_stmt() : 
