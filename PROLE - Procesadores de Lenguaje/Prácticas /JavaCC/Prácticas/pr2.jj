@@ -1,12 +1,19 @@
+// Autor: Diego Garda Porto
+// Versión: 01/11/2025
+
+options{}
+
 PARSER_BEGIN(pr2)
 
 public class pr2{
 
-		public static void main(String args[]) throws ParseException{
-			
+		static int nEtiqueta = 0;	
+
+		public static void main(String args[]) throws ParseException{		
+
 			if(args.length != 1){
 				pr2 parser = new pr2 (System.in);
-				parser.list_sntncs();
+				pr2.list_sntncs();
 			} else{
 				
 				try{
@@ -14,11 +21,11 @@ public class pr2{
 					Token tk; 
 				
 					pr2 parse = new pr2(fr);
-					parser.list_sntncs();
+					pr2.list_sntncs();
 
 					fr.close();
 				}catch(java.io.IOException e){	
-					System.out.println("Error al abrir el archivo: " + e.getMessage());
+					System.out.println("Error al abrir el archivo: " + e.getMessage() + " Incluye la extensión del mismo.");
 					
 				}catch(TokenMgrError x){
 					System.out.println("Error de token.");
@@ -36,15 +43,21 @@ PARSER_END(pr2)
 // Definición de tokens (terminales)
 SKIP:
 {
-	" " | "\t" | "\n" | "\r"
-|	"//" ~[\n\r]*
-|	"/*" (~["*"])* "*/"
+	<REST: " " | "\t" | "\n" | "\r">
+|	<COM_LINE: "//" (~["\n", "\r"])*>
+|	<COM_MULTI_LINE: "/*" (~["*"])* "*/">
 }
 
 TOKEN:
 {
 	<NUM: (["0" - "9"])+>
+|	<SI: "si">
+| 	<SINO: "sino">
+| 	<MIENTRAS: "mientras">
+|	<IMPRIMIR: "imprimir">
+|	<HACER: "hacer">
 |	<ID: (["a" - "z", "A" - "Z", "_"])(["a" - "z", "A" - "Z", "_", "0" - "9"])*>
+
 }
 
 // Definicion de producciones (no terminales)
@@ -61,38 +74,78 @@ void sntnc() : {} {
 }
 
 void print_stmt() : {} {
-	"imprimir" "(" expr() ")"
+	"imprimir" "(" expr() ")" 		{System.out.println("	print");}
 }
 
-void sel_stmt() : {} {
-	"si" "(" expr() ")" "{" list_sntncs() "}" ("sino" "{" list_sntncs() "}")?
+void sel_stmt() :
+{
+	// int etiElse = nEtiqueta; 			
+	 int etiEnd = nEtiqueta+1;		// Etiqueta en el END del SI
+}
+ {
+	
+	"si" "(" expr() ")" 				{System.out.println("	sifalsovea LBL" + nEtiqueta);} 			// Si es falso, se ejecuta la parte del sino
+	"{" list_sntncs() "}" 						
+	("sino"					 		{System.out.println("	vea LBL" + etiEnd);						// Tras hacer el SI se salta a la etiqueta posterior al SINO
+									 System.out.println("LBL" + (nEtiqueta++));}						// Etiqueta donde comienza la parte del SINO
+	"{" list_sntncs() "}")?			{System.out.println("LBL" + nEtiqueta);}						// Etiqueta donde continua el programa tras todo el SI-SINO.
 }
 
-void iter_stmt() : {} {
-	"mientras" "(" expr() ")" "{" list_sntncs() "}"
-| 	"hacer" "{" list_sntncs() "}" "mientras" "(" expr() ")"
+void iter_stmt() : 
+{
+	int etiRepMien = nEtiqueta;		// Etiqueta que vuele al inicio del mientras para repetir el bucle 
+	int etiRepHac = nEtiqueta;			// Etiqueta que salta al inicio del bucle hacer-mientras si condicion verdadera en su mientras de comprobacion 
+}
+ {
+
+	"mientras" 				{System.out.println("LBL" + nEtiqueta++);}				// Etiqueta del inicio del bucle mientras (siempre debe aparecer), luego se incrementa la etiqueta actual 		
+	"(" expr() ")" 			{System.out.println("	sifalsovea LBL" + nEtiqueta);} 	// Si es falso salta fuera del bucle
+	"{" list_sntncs() "}"		{System.out.println("	vea LBL" + etiRepMien);		// Cuando se llega al fin del bucle se repite para volver a hacer la comprobación (etiRepMien tiene el valor de nEtiqueta antes del incremento anterior)
+							 System.out.println("LBL" + nEtiqueta++);}				// Etiqueta tras finalizar bucle mientras 
+| 	
+	"hacer"						{System.out.println("LBL" + nEtiqueta++);}				// Etiqueta inicial del bucle hacer-mientras
+	"{" list_sntncs() "}" 
+	"mientras" "(" expr() ")"	{System.out.println("	siciertovea LBL" + etiRepHac);} 	// Salto a la etiqueta inicial del hacer-mientras si se cumple la condición
 }
 
 void assig_stmt() : 
-{Token tk} 
 {
-	tk=<ID> ("=" | "+=" | "-=" | "*=" | "/=") expr()
+	Token tk; 
+	String op = " ";
+} 
+{
+	tk=<ID> 	{System.out.println("	valori " + tk.image);}
+	(
+	"=" 			
+	|"+=" 		{System.out.println("	valord " + tk.image); op = "	sum\n";}
+	| "-=" 		{System.out.println("	valord " + tk.image); op = "	sub\n";}
+	| "*=" 		{System.out.println("	valord " + tk.image); op = "	mul\n";}
+	| "/="		{System.out.println("	valord " + tk.image); op = "	div\n";}
+	) 
+	expr()		{ System.out.print(op); System.out.println("	asigna");}
 }
 
 void expr() : {} {
-	mul_expr() (("+" | "-") mul_expr())*
+	mult_expr()
+	(
+	"+" mult_expr()			{System.out.println("	sum");}
+	| "-" mult_expr()		{System.out.println("	sub");}
+	)*
 }
 
 void mult_expr() : {} {
-	val() (("*" | "/") val())*
+	val() 
+	(
+	"*" val()		{System.out.println("	mul");}
+	| "/" val()		{System.out.println("	div");}
+	)* 
 }
 
-void val() : 
-{Token tk}
+void val() : {Token tk;}
 {
-	tk=<NUM>
-|	tk=<ID>
-| 	"(" expr() ")"
+	tk=<NUM>		{System.out.println("	mete " + tk.image);}		// se mete el valor 
+|	tk=<ID>			{System.out.println("	valord " + tk.image);}		// Aqui se accede al valor de la variable 
+| 	"(" expr() ")"	
 }
 
 
