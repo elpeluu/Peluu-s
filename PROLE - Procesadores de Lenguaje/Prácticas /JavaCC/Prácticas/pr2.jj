@@ -1,5 +1,4 @@
 // Autor: Diego Garda Porto
-// Versión: 01/11/2025
 
 options{}
 
@@ -79,7 +78,6 @@ void print_stmt() : {} {
 
 void sel_stmt() :
 {
-	// int etiElse = nEtiqueta; 			
 	 int etiEnd = nEtiqueta+1;		// Etiqueta en el END del SI
 }
  {
@@ -88,7 +86,9 @@ void sel_stmt() :
 	"{" list_sntncs() "}" 						
 	("sino"					 		{System.out.println("	vea LBL" + etiEnd);						// Tras hacer el SI se salta a la etiqueta posterior al SINO
 									 System.out.println("LBL" + (nEtiqueta++));}						// Etiqueta donde comienza la parte del SINO
-	"{" list_sntncs() "}")?			{System.out.println("LBL" + nEtiqueta);}						// Etiqueta donde continua el programa tras todo el SI-SINO.
+	"{" list_sntncs() "}")?			{System.out.println("LBL" + nEtiqueta++);}						// Etiqueta donde continua el programa tras todo el SI-SINO.
+									
+	
 }
 
 void iter_stmt() : 
