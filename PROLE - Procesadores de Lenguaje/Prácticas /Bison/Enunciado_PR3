@@ -1,0 +1,246 @@
+Se trata de utilizar bison para obtener un compilador que traduzca un 
+lenguaje de alto nivel a código de la máquina de pila abstracta. Es decir,
+lo mismo que se ha hecho con JavaCC, pero esta vez usando un generador
+de analizadores ascendentes como es bison.
+
+El lenguaje de alto nivel es muy sencillo. No tiene declaración de tipos y 
+el único tipo que permite es el tipo entero. En las condiciones de los
+condicionales y bucles (si y mientras) el valor 0 se interpreta como falso 
+y cualquier otro valor como verdadero.
+
+Los comentarios son en línea comenzando con los carácteres '//', y multilínea 
+entre ('/*' y '*/'). Se valorará el uso de expresiones regulares simples para 
+la identificación de los comentarios.
+
+El terminal 'NUM' representa un número entero positivo e 'ID' un 
+identificador/variable del lenguaje. Los identificadores pueden estar 
+formados por letras, números o guiones bajos (pero no pueden comenzar por 
+número). Las palabras reservadas son en minúsculas.
+
+Debe ser capaz de leer por entrada estándar (teclado) y por un fichero que se 
+le suministre por argumento.
+
+
+La gramática del lenguaje es la siguiente:
+
+Antecedente: list_sntncs
+Consecuente: sntnc ';' list_sntncs 
+          o: sntnc ';'
+
+Antecedente: sntnc
+Consecuente: sel_stmt 
+          o: iter_stmt 
+          o: assig_stmt
+          o: print_stmt
+
+Antecedente: print_stmt
+Consecuente: 'imprimir' '(' expr ')'
+
+Antecedente: sel_stmt
+Consecuente: 'si' '(' expr ')' '{' list_sntncs '}'
+          o: 'si' '(' expr ')' '{' list_sntncs '}' 'sino' '{' list_sntncs '}'
+
+Antecedente: iter_stmt
+Consecuente: 'mientras' '(' expr ')' '{' list_sntncs '}'
+          o: 'hacer' '{' list_sntncs '}' 'mientras' '(' expr ')'
+
+Antecedente: assig_stmt
+Consecuente: ID '=' expr
+          o: ID '+=' expr
+          o: ID '-=' expr
+          o: ID '*=' expr
+          o: ID '/=' expr
+
+Antecedente: expr
+Consecuente: mult_expr '+' expr
+          o: mult_expr '-' expr
+          o: mult_expr
+
+Antecedente: mult_expr
+Consecuente: val '/' mult_expr
+          o: val '*' mult_expr
+          o: val
+
+Antecedente: val
+Consecuente: NUM  
+          o: ID
+          o: '(' expr ')'
+
+
+Ante una entrada como:
+
+// Inicio programa
+_i = 0;          // Inicialización de variable
+si (_i-10)       // Evalúa la expresión
+{
+    imprimir(_i);
+}
+sino{
+    imprimir((100));
+};
+// Fin del condicional
+vAriAble=(0-1+2)* x - (_i);
+// Fin del programa
+
+
+Debería mostrar (excepto quizá el número de las etiquetas):
+
+	valori _i
+	mete 0
+	asigna
+	valord _i
+	mete 10
+	sub
+	sifalsovea LBL0
+	valord _i
+	print 
+	vea LBL1
+LBL0
+	mete 100
+	print 
+LBL1
+	valori vAriAble
+	mete 0
+	mete 1
+	sub
+	mete 2
+	sum
+	valord x
+	mul
+	valord _i
+	sub
+	asigna
+
+
+
+Ante una entrada como:
+
+a = 10;
+mientras ( a ) {
+    imprimir  (a);
+    a -= 1;
+};
+b = 33;
+si (x - y) {a = b;};
+imprimir(5*6-3-2*8/2);
+si(_myVar-7)
+{a=1;}
+sino
+{b=2;};
+imprimir((0));
+hacer{var_do*=5;}mientras(x);
+
+Debería mostrar (excepto quizá el número de las etiquetas):
+
+	valori a
+	mete 10
+	asigna
+LBL0
+	valord a
+	sifalsovea LBL1
+	valord a
+	print 
+	valori a
+	valord a
+	mete 1
+	sub
+	asigna
+	vea LBL0
+LBL1
+	valori b
+	mete 33
+	asigna
+	valord x
+	valord y
+	sub
+	sifalsovea LBL2
+	valori a
+	valord b
+	asigna
+LBL2
+	mete 5
+	mete 6
+	mul
+	mete 3
+	sub
+	mete 2
+	mete 8
+	mul
+	mete 2
+	div
+	sub
+	print 
+	valord _myVar
+	mete 7
+	sub
+	sifalsovea LBL4
+	valori a
+	mete 1
+	asigna
+	vea LBL5
+LBL4
+	valori b
+	mete 2
+	asigna
+LBL5
+	mete 0
+	print 
+LBL6
+	valori var_do
+	valord var_do
+	mete 5
+	mul
+	asigna
+	valord x
+	siciertovea LBL6
+
+
+
+Ante una entrada como:
+
+/* Ejemplo de un bucle anidado:
+   - El primero es un bucle infinito que inicializa var1, var2 y var3 e imprime var1
+   - El segundo se repite mientras var1-var2 y actualiza var1 incrementándole con var2
+*/
+hacer {
+    var1 = 10;
+    var2 = 100;
+    var3 = 5;
+    imprimir ( var1 );
+    mientras (var1-var3) {
+        var1 += var2;
+    };
+    imprimir (variable);
+} mientras (1);
+
+
+Debería mostrar (excepto quizá el número de las etiquetas):
+
+LBL0
+	valori var1
+	mete 10
+	asigna
+	valori var2
+	mete 100
+	asigna
+	valori var3
+	mete 5
+	asigna
+	valord var1
+	print 
+LBL1
+	valord var1
+	valord var3
+	sub
+	sifalsovea LBL2
+	valori var1
+	valord var1
+	valord var2
+	sum
+	asigna
+	vea LBL1
+LBL2
+	valord variable
+	print 
+	mete 1
+	siciertovea LBL0
