@@ -32,7 +32,7 @@ sntnc : sel_stmt
       | assig_stmt
       | print_stmt;
 
-print_stmt : IMPRIMIR '(' expr ')'';'	{printf("\tprint\n");}
+print_stmt : IMPRIMIR '(' expr ')'	{printf("\tprint\n");}
 
 sel_stmt : SI '(' expr ')'	accionSi
 	 '{' list_sntncs '}'
@@ -41,7 +41,7 @@ sel_stmt : SI '(' expr ')'	accionSi
 	 '{' list_sntncs '}' 
 	 SINO			{printf("\tvea LBL\n");
 				 printf("LBL\n");} 
-	 '{' list_sntncs '}'';'	{printf("LBL\n");}
+	 '{' list_sntncs '}'	{printf("LBL\n");}
 	;
 
 // Para solucionar el problema de bison REDUCE/REDUCE al aplicar acciones semánticas dentro del si-sino
@@ -54,31 +54,36 @@ iter_stmt : MIENTRAS		{printf("LBL\n");}
 	|
 	HACER			{printf("LBL\n");} 
 	'{' list_sntncs '}' 
-	MIENTRAS '(' expr ')'';'	{printf("\tsiciertovea LBL\n");}
+	MIENTRAS '(' expr ')'	{printf("\tsiciertovea LBL\n");}
 	;
 
 assig_stmt : ID			{printf("\tvalori %s\n", $1);}
-		ASIGN expr		{printf("\tasigna\n");}
+		ASIGN expr	{printf("\tasigna\n");
+				 free($1);}
 
 	   | ID	SUM_ASIGN	{printf("\tvalori %s\n", $1);
 				 printf("\tvalord %s\n", $1);}
 		expr		{printf("\tsum\n");
-				 printf("\tasigna\n");}
+				 printf("\tasigna\n");
+				 free($1);}
 
 	   | ID	SUB_ASIGN	{printf("\tvalori %s\n", $1);
 				 printf("\tvalord %s\n",$1);} 
 		expr		{printf("\tsub\n");
-				 printf("\tasigna\n");}
+				 printf("\tasigna\n");
+				 free($1);}
 
 	   | ID	MUL_ASIGN	{printf("\tvalori %s\n", $1);
 				 printf("\tvalord %s\n", $1);} 
 		expr		{printf("\tmul\n");
-				 printf("\tasigna\n");}
+				 printf("\tasigna\n");
+				 free($1);}
 
 	   | ID	DIV_ASIGN	{printf("\tvalori %s\n", $1);
 				 printf("\tvalord %s\n", $1);} 
 		expr		{printf("\tdiv\n");
-				 printf("\tasigna\n");}
+				 printf("\tasigna\n");
+				 free($1);}
 			
 
 expr : mult_expr
