@@ -1,60 +1,71 @@
-peluu@Prole:~/PROLE/pr3$ gcc lex.yy.c y.tab.c -o pr3 -lfl
-lex.yy.c: In function ‘yylex’:
-lex.yy.c:984:12: error: invalid storage class for function ‘yy_get_next_buffer’
-  984 | static int yy_get_next_buffer (void)
-      |            ^~~~~~~~~~~~~~~~~~
-lex.yy.c:1122:26: error: invalid storage class for function ‘yy_get_previous_state’
- 1122 |     static yy_state_type yy_get_previous_state (void)
-      |                          ^~~~~~~~~~~~~~~~~~~~~
-lex.yy.c:1154:26: error: invalid storage class for function ‘yy_try_NUL_trans’
- 1154 |     static yy_state_type yy_try_NUL_trans  (yy_state_type yy_current_state )
-      |                          ^~~~~~~~~~~~~~~~
-lex.yy.c:1179:17: error: invalid storage class for function ‘yyunput’
- 1179 |     static void yyunput (int c, char * yy_bp )
-      |                 ^~~~~~~
-lex.yy.c:1222:16: error: invalid storage class for function ‘input’
- 1222 |     static int input  (void)
-      |                ^~~~~
-lex.yy.c:1345:13: error: invalid storage class for function ‘yy_load_buffer_state’
- 1345 | static void yy_load_buffer_state  (void)
-      |             ^~~~~~~~~~~~~~~~~~~~
-lex.yy.c:1406:17: error: invalid storage class for function ‘yy_init_buffer’
- 1406 |     static void yy_init_buffer  (YY_BUFFER_STATE  b, FILE * file )
-      |                 ^~~~~~~~~~~~~~
-lex.yy.c:1512:13: error: invalid storage class for function ‘yyensure_buffer_stack’
- 1512 | static void yyensure_buffer_stack (void)
-      |             ^~~~~~~~~~~~~~~~~~~~~
-lex.yy.c:1645:24: error: invalid storage class for function ‘yy_fatal_error’
- 1645 | static void yynoreturn yy_fatal_error (const char* msg )
-      |                        ^~~~~~~~~~~~~~
-lex.yy.c:1748:12: error: invalid storage class for function ‘yy_init_globals’
- 1748 | static int yy_init_globals (void)
-      |            ^~~~~~~~~~~~~~~
-pr3.l:25: error: expected declaration or statement at end of input
-   25 | %%
-      | 
-pr3.l:25: error: expected declaration or statement at end of input
-pr3.l:25: error: expected declaration or statement at end of input
-lex.yy.c: At top level:
-lex.yy.c:290:13: warning: ‘yyensure_buffer_stack’ used but never defined
-  290 | static void yyensure_buffer_stack ( void );
-      |             ^~~~~~~~~~~~~~~~~~~~~
-lex.yy.c:291:13: warning: ‘yy_load_buffer_state’ used but never defined
-  291 | static void yy_load_buffer_state ( void );
-      |             ^~~~~~~~~~~~~~~~~~~~
-lex.yy.c:292:13: warning: ‘yy_init_buffer’ used but never defined
-  292 | static void yy_init_buffer ( YY_BUFFER_STATE b, FILE *file  );
-      |             ^~~~~~~~~~~~~~
-lex.yy.c:340:22: warning: ‘yy_get_previous_state’ used but never defined
-  340 | static yy_state_type yy_get_previous_state ( void );
-      |                      ^~~~~~~~~~~~~~~~~~~~~
-lex.yy.c:341:22: warning: ‘yy_try_NUL_trans’ used but never defined
-  341 | static yy_state_type yy_try_NUL_trans ( yy_state_type current_state  );
-      |                      ^~~~~~~~~~~~~~~~
-lex.yy.c:342:12: warning: ‘yy_get_next_buffer’ used but never defined
-  342 | static int yy_get_next_buffer ( void );
-      |            ^~~~~~~~~~~~~~~~~~
-lex.yy.c:343:24: warning: ‘yy_fatal_error’ used but never defined
-  343 | static void yynoreturn yy_fatal_error ( const char* msg  );
-      |                        ^~~~~~~~~~~~~~
-peluu@Prole:~/PROLE/pr3$ 
+// El símbolo ID en la primera acción es $1, y el ID en la segunda acción es $1.
+// No usamos $$ = $1 porque no es necesario para el flujo de pila.
+
+assig_stmt : ID	            {
+                            // ACCIÓN 1: Preparación de la Asignación
+                            // Se imprime VALORI, que es la dirección donde guardaremos el resultado.
+                            printf("\tvalori %s\n", $1);
+                        }
+		ASIGN expr	{
+                            // ACCIÓN 2: Finalización de la Asignación
+                            // El código de 'expr' se imprime justo aquí.
+                            printf("\tasigna\n");
+                            // Si se requiriera liberar la memoria del ID: free($1);
+                        }
+	   ;
+
+// --------------------------------------------------------------------------
+
+| ID SUM_ASIGN	        {
+                            // ACCIÓN 1: Preparación Compuesta
+                            // 1. VALORI (Dirección para guardar)
+                            printf("\tvalori %s\n", $1);
+                            // 2. VALORD (Valor actual como operando 1)
+                            printf("\tvalord %s\n", $1);
+                        }
+		expr		{
+                            // ACCIÓN 2: Finalización Compuesta
+                            // El código de 'expr' se imprime implícitamente aquí (operando 2).
+                            printf("\tsum\n");
+                            printf("\tasigna\n");
+                        }
+
+// --------------------------------------------------------------------------
+
+| ID SUB_ASIGN	        {
+                            // ACCIÓN 1: Preparación Compuesta
+                            printf("\tvalori %s\n", $1);
+                            printf("\tvalord %s\n", $1);
+                        }
+		expr		{
+                            // ACCIÓN 2: Finalización Compuesta
+                            printf("\tsub\n");
+                            printf("\tasigna\n");
+                        }
+
+// --------------------------------------------------------------------------
+
+| ID MUL_ASIGN	        {
+                            // ACCIÓN 1: Preparación Compuesta
+                            printf("\tvalori %s\n", $1);
+                            printf("\tvalord %s\n", $1);
+                        }
+		expr		{
+                            // ACCIÓN 2: Finalización Compuesta
+                            printf("\tmul\n");
+                            printf("\tasigna\n");
+                        }
+
+// --------------------------------------------------------------------------
+
+| ID DIV_ASIGN	        {
+                            // ACCIÓN 1: Preparación Compuesta
+                            printf("\tvalori %s\n", $1);
+                            printf("\tvalord %s\n", $1);
+                        }
+		expr		{
+                            // ACCIÓN 2: Finalización Compuesta
+                            printf("\tdiv\n");
+                            printf("\tasigna\n");
+                        }
+	;
