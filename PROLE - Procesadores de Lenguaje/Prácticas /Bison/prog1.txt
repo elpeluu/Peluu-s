@@ -1,0 +1,12 @@
+// Inicio programa
+_i = 0;          // Inicialización de variable
+si (_i-10)       // Evalúa la expresión
+{
+    imprimir(_i);
+}
+sino{
+    imprimir((100));
+};
+// Fin del condicional
+vAriAble=(0-1+2)* x - (_i);
+// Fin del programa
