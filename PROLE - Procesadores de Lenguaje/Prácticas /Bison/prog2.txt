@@ -1,0 +1,15 @@
+// Programa ejemplo 2
+a = 10;
+mientras ( a ) {
+    imprimir  (a);
+    a -= 1;
+};
+b = 33;
+si (x - y) {a = b;};
+imprimir(5*6-3-2*8/2);
+si(_myVar-7)
+{a=1;}
+sino
+{b=2;};
+imprimir((0));
+hacer{var_do*=5;}mientras(x);
