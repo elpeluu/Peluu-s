@@ -1,0 +1,15 @@
+// Programa ejemplo 3
+/* Ejemplo de un bucle anidado:
+   - El primero es un bucle infinito que inicializa var1, var2 y var3 e imprime var1
+   - El segundo se repite mientras var1-var2 y actualiza var1 incrementándole con var2
+*/
+hacer {
+    var1 = 10;
+    var2 = 100;
+    var3 = 5;
+    imprimir ( var1 );
+    mientras (var1-var3) {
+        var1 += var2;
+    };
+    imprimir (variable);
+} mientras (1);
