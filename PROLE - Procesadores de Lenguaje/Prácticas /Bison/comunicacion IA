@@ -1,203 +1,67 @@
-// Analizador sintáctico de la pr3 
-// Autor: Diego Garda Porto
-%{
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-int nEtiqueta = 0;
-
-// Función para obtener el siguiente número de etiqueta
-int siguienteEtiqueta() {
-    return nEtiqueta++;
-}
-
-void yyerror (const char *s);
-extern int yylex();   
-%}
-
-%union{
-   int numero;
-   char *id; 
-   int eti; 
-}
-
-// Declaración de Tokens
-%token <numero>NUM <id>ID SI SINO IMPRIMIR MIENTRAS HACER SUM_ASIGN SUB_ASIGN MUL_ASIGN DIV_ASIGN ASIGN
-// Declaración de Tipos para no terminales que propagan etiquetas
-%type <eti> sel_stmt iter_stmt
-
-%left '+' '-' 
-%left '*' '/'
-
-%%
-
-list_sntncs : sntnc ';'
-            | sntnc ';' list_sntncs;
-
-sntnc : sel_stmt
-      | iter_stmt
-      | assig_stmt
-      | print_stmt;
-
-// Eliminado el ';' extra al final, ya que list_sntncs lo añade
-print_stmt : IMPRIMIR '(' expr ')'  { printf("\tprint\n"); };
-
-// --- ESTRUCTURAS DE CONTROL CON ETIQUETAS ---
-
-sel_stmt : SI '(' expr ')'      { 
-                                  // Acción 1: Generar LBL_SINO
-                                  int lbl = siguienteEtiqueta();
-                                  printf("\tsifalsovea LBL%d\n", lbl);
-                                  $$ = lbl; // Guardar LBL_SINO en la pila ($5)
-                                }
-           '{' list_sntncs '}'  
-           
-           // Alternativa 1: IF SIMPLE (Sin SINO)
-           // En este caso, la etiqueta generada arriba es el final.
-           // Como Bison hace reducción, necesitamos dividirlo o gestionar el caso.
-           // Para simplificar con tu estructura actual, asumimos la estructura completa abajo.
-           
-         | SI '(' expr ')'      { 
-                                  // Acción 1: Generar LBL_SINO
-                                  int lbl = siguienteEtiqueta();
-                                  printf("\tsifalsovea LBL%d\n", lbl);
-                                  $$ = lbl; // Guardar LBL_SINO ($5)
-                                }
-           '{' list_sntncs '}'  {
-                                  // Acción 2: Generar LBL_FIN
-                                  int lbl_fin = siguienteEtiqueta();
-                                  printf("\tvea LBL%d\n", lbl_fin);
-                                  
-                                  // Imprimir etiqueta SINO (recuperada de $5)
-                                  printf("LBL%d\n", $5); 
-                                  
-                                  $$ = lbl_fin; // Guardar LBL_FIN ($8)
-                                }
-           SINO 
-           '{' list_sntncs '}'  {
-                                  // Acción Final: Imprimir etiqueta FIN (recuperada de $8)
-                                  printf("LBL%d\n", $8);
-                                };
-
-iter_stmt : MIENTRAS            {
-                                  // Acción 1: Etiqueta Inicio
-                                  int lbl_ini = siguienteEtiqueta();
-                                  printf("LBL%d\n", lbl_ini);
-                                  $$ = lbl_ini; // Guardar LBL_INICIO ($2)
-                                }
-            '(' expr ')'        {
-                                  // Acción 2: Etiqueta Fin
-                                  int lbl_fin = siguienteEtiqueta();
-                                  printf("\tsifalsovea LBL%d\n", lbl_fin);
-                                  $$ = lbl_fin; // Guardar LBL_FIN ($5)
-                                }
-            '{' list_sntncs '}' {
-                                  // Acción Final
-                                  // Recuperamos LBL_INICIO de $2 y LBL_FIN de $5
-                                  printf("\tvea LBL%d\n", $2);
-                                  printf("LBL%d\n", $5);
-                                }
-          | HACER               {
-                                  int lbl_ini = siguienteEtiqueta();
-                                  printf("LBL%d\n", lbl_ini);
-                                  $$ = lbl_ini; // Guardar LBL_INICIO ($2)
-                                }
-            '{' list_sntncs '}' 
-            MIENTRAS '(' expr ')' {
-                                  // Recuperamos LBL_INICIO de $2
-                                  printf("\tsiciertovea LBL%d\n", $2);
-                                };
-
-// --- ASIGNACIONES CON GESTIÓN DE MEMORIA (STRDUP) ---
-// Nota: Usamos acciones intermedias INMEDIATAMENTE después del ID
-// para copiar la cadena antes de que Flex la sobrescriba.
-
-assig_stmt : ID {
-                  // COPIA SEGURA: Guardamos el nombre antes de leer el operador
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  $$ = (int)nombre; // Guardamos el puntero (cast a int si el tipo no coincide, o usar un tipo <id>)
-                  // NOTA: Para que esto compile limpio, idealmente assig_stmt debería tener tipo <id> o usar un cast.
-                  // Asumiremos que el compilador permite pasar el puntero en $$.
-                }
-             ASIGN expr {
-                  printf("\tasigna\n");
-                  free((char*)$2); // Liberamos la copia guardada en la acción 2 ($2)
-                }
-
-           | ID {
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  printf("\tvalord %s\n", nombre);
-                  $$ = (int)nombre; 
-                }
-             SUM_ASIGN expr {
-                  printf("\tsum\n");
-                  printf("\tasigna\n");
-                  free((char*)$2);
-                }
-
-           | ID {
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  printf("\tvalord %s\n", nombre);
-                  $$ = (int)nombre;
-                }
-             SUB_ASIGN expr {
-                  printf("\tsub\n");
-                  printf("\tasigna\n");
-                  free((char*)$2);
-                }
-
-           | ID {
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  printf("\tvalord %s\n", nombre);
-                  $$ = (int)nombre;
-                }
-             MUL_ASIGN expr {
-                  printf("\tmul\n");
-                  printf("\tasigna\n");
-                  free((char*)$2);
-                }
-
-           | ID {
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  printf("\tvalord %s\n", nombre);
-                  $$ = (int)nombre;
-                }
-             DIV_ASIGN expr {
-                  printf("\tdiv\n");
-                  printf("\tasigna\n");
-                  free((char*)$2);
-                }
-           ;
-
-// --- EXPRESIONES ---
-
-expr : mult_expr
-     | mult_expr '+' expr   {printf("\tsum\n");}       
-     | mult_expr '-' expr   {printf("\tsub\n");}
-     ;   
- 
-mult_expr : val 
-     | val '*' mult_expr    {printf("\tmul\n");}        
-     | val '/' mult_expr    {printf("\tdiv\n");}
-     ;       
-
-val : NUM       {printf("\tmete %d\n", $1);}        
-    | ID        {printf("\tvalord %s\n", $1);}        
-    | '(' expr ')';
-
-%%
-
-void yyerror(const char *s){
-    fprintf(stderr, "Error de sintaxis: %s\n", s);
-}
-
-int main(){
-    yyparse();
-    return 0;
-}
+peluu@Prole:~/PROLE/pr3$ bison -yd pr32.y
+pr32.y:52.35-36: error: $$ for the midrule at $5 of ‘sel_stmt’ has no declared type
+   52 |                                   $$ = lbl; // Guardar LBL_SINO en la pila ($5)
+      |                                   ^~
+pr32.y:65.35-36: error: $$ for the midrule at $5 of ‘sel_stmt’ has no declared type
+   65 |                                   $$ = lbl; // Guardar LBL_SINO ($5)
+      |                                   ^~
+pr32.y:73.53-54: error: $5 of ‘sel_stmt’ has no declared type
+   73 |                                   printf("LBL%d\n", $5); 
+      |                                                     ^~
+pr32.y:75.35-36: error: $$ for the midrule at $9 of ‘sel_stmt’ has no declared type
+   75 |                                   $$ = lbl_fin; // Guardar LBL_FIN ($8)
+      |                                   ^~
+pr32.y:80.53-54: error: $8 of ‘sel_stmt’ has no declared type
+   80 |                                   printf("LBL%d\n", $8);
+      |                                                     ^~
+pr32.y:87.35-36: error: $$ for the midrule at $2 of ‘iter_stmt’ has no declared type
+   87 |                                   $$ = lbl_ini; // Guardar LBL_INICIO ($2)
+      |                                   ^~
+pr32.y:93.35-36: error: $$ for the midrule at $6 of ‘iter_stmt’ has no declared type
+   93 |                                   $$ = lbl_fin; // Guardar LBL_FIN ($5)
+      |                                   ^~
+pr32.y:98.59-60: error: $2 of ‘iter_stmt’ has no declared type
+   98 |                                   printf("\tvea LBL%d\n", $2);
+      |                                                           ^~
+pr32.y:99.53-54: error: $5 of ‘iter_stmt’ has no declared type
+   99 |                                   printf("LBL%d\n", $5);
+      |                                                     ^~
+pr32.y:104.35-36: error: $$ for the midrule at $2 of ‘iter_stmt’ has no declared type
+  104 |                                   $$ = lbl_ini; // Guardar LBL_INICIO ($2)
+      |                                   ^~
+pr32.y:109.67-68: error: $2 of ‘iter_stmt’ has no declared type
+  109 |                                   printf("\tsiciertovea LBL%d\n", $2);
+      |                                                                   ^~
+pr32.y:120.19-20: error: $$ for the midrule at $2 of ‘assig_stmt’ has no declared type
+  120 |                   $$ = (int)nombre; // Guardamos el puntero (cast a int si el tipo no coincide, o usar un tip...
+      |                   ^~
+pr32.y:126.31-32: error: $2 of ‘assig_stmt’ has no declared type
+  126 |                   free((char*)$2); // Liberamos la copia guardada en la acción 2 ($2)
+      |                               ^~
+pr32.y:133.19-20: error: $$ for the midrule at $2 of ‘assig_stmt’ has no declared type
+  133 |                   $$ = (int)nombre; 
+      |                   ^~
+pr32.y:138.31-32: error: $2 of ‘assig_stmt’ has no declared type
+  138 |                   free((char*)$2);
+      |                               ^~
+pr32.y:145.19-20: error: $$ for the midrule at $2 of ‘assig_stmt’ has no declared type
+  145 |                   $$ = (int)nombre;
+      |                   ^~
+pr32.y:150.31-32: error: $2 of ‘assig_stmt’ has no declared type
+  150 |                   free((char*)$2);
+      |                               ^~
+pr32.y:157.19-20: error: $$ for the midrule at $2 of ‘assig_stmt’ has no declared type
+  157 |                   $$ = (int)nombre;
+      |                   ^~
+pr32.y:162.31-32: error: $2 of ‘assig_stmt’ has no declared type
+  162 |                   free((char*)$2);
+      |                               ^~
+pr32.y:169.19-20: error: $$ for the midrule at $2 of ‘assig_stmt’ has no declared type
+  169 |                   $$ = (int)nombre;
+      |                   ^~
+pr32.y:174.31-32: error: $2 of ‘assig_stmt’ has no declared type
+  174 |                   free((char*)$2);
+      |                               ^~
+pr32.y:48.12-54.30: warning: type clash on default action: <eti> != <id> [-Wother]
+   48 | sel_stmt : SI '(' expr ')'      { 
+      |            ^~~~~~~~~~~~~~~~~~~~~~~
