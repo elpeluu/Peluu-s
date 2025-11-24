@@ -7,9 +7,6 @@
 
 %%
 
-[0-9]+                      { yylval.numero = atoi(yytext); return NUM; }
-[a-zA-Z_][a-zA-Z_0-9]+      { yylval.id = strdup(yytext); return ID; }
-
 "si"                        return SI;
 "sino"                      return SINO;
 "imprimir"                  return IMPRIMIR;
@@ -22,9 +19,12 @@
 "/="                        return DIV_ASIGN;
 "="                         return ASIGN;
 
-[ \t\n\r]+                  ; /* Ignorar espacios y saltos de linea */
-"//".* ; /* Ignorar comentarios de linea */
-"/*"([^*]|(\*+[^*/]))*\*+"*/" ; /* Ignorar comentarios multilinea (Regex corregida) */
+[0-9]+                      { yylval.numero = atoi(yytext); return NUM; }
+[a-zA-Z_][a-zA-Z_0-9]* { return ID; }
+
+[ \t\n\r]+                  ; /* Ignorar espacios */
+"//".* ; /* Comentarios linea */
+"/*"([^*]|(\*+[^*/]))*\*+"*/" ; /* Comentarios bloque */
 
 .                           return yytext[0];
 
