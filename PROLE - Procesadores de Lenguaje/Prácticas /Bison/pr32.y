@@ -24,7 +24,7 @@ int siguienteEtiqueta() {
 }
 
 %token <numero>NUM <id>ID SI SINO IMPRIMIR MIENTRAS HACER SUM_ASIGN SUB_ASIGN MUL_ASIGN DIV_ASIGN ASIGN
-%type <eti> if_inicial mien_inicial
+%type <eti> if_inicial mien_inicial id_asig id_op
 
 %left '+' '-' 
 %left '*' '/'
@@ -94,39 +94,26 @@ iter_stmt : mien_inicial '(' expr ')' {
               printf("\tsiciertovea LBL%d\n", $<eti>2); 
             };
 
-assig_stmt : ID { printf("\tvalori %s\n", yytext); }   // Este es el error que falta por corregir, hay que leer el simbolo anterior, no el =  
-             ASIGN expr { printf("\tasigna\n"); }
+// Id de una asignacion normel "="
+id_asig : ID {
+	printf("\tvalori %s\n", $1);
+}
 
-           | ID { 
-               printf("\tvalori %s\n", yytext); 
-               printf("\tvalord %s\n", yytext); 
-             } 
-             SUM_ASIGN expr { printf("\tsum\n"); 
-			      printf("\tasigna\n"); }
+// Id de asignaciones con operaciones "+=", "-=", "*=", "/="
+id_op : ID {
+	printf("\tvalori %s\n\tvalord %s\n", $1, $1);
+}
 
-           | ID { 
-               printf("\tvalori %s\n", yytext); 
-               printf("\tvalord %s\n", yytext); 
-             } 
-             SUB_ASIGN expr { printf("\tsub\n");
-			      printf("\tasigna\n"); }
+assig_stmt : id_asig ASIGN expr { printf("\tasigna\n"); }
+           |  
+	     id_op SUM_ASIGN expr {printf("\tsum\n\tasigna\n");}
+ 
+           | id_op SUB_ASIGN expr {printf("\tsub\n\tasigna\n");}
 
-           | ID { 
-               printf("\tvalori %s\n", yytext); 
-               printf("\tvalord %s\n", yytext); 
-             } 
-             MUL_ASIGN expr { printf("\tmul\n"); 
-			      printf("\tasigna\n"); }
+           | id_op MUL_ASIGN expr {printf("\tmul\n\tasigna\n");} 
 
-           | ID { 
-               printf("\tvalori %s\n", yytext); 
-               printf("\tvalord %s\n", yytext); 
-             } 
-             DIV_ASIGN expr { printf("\tdiv\n");
-			      printf("\tasigna\n"); }
+           | id_op DIV_ASIGN expr {printf("\tdiv\n\tasigna\n");}
            ;
-
-// --- EXPRESIONES ---
 
 expr : mult_expr
      | mult_expr '+' expr   {printf("\tsum\n");}       
@@ -139,7 +126,7 @@ mult_expr : val
      ;       
 
 val : NUM       {printf("\tmete %d\n", $1);}        
-    | ID        {printf("\tvalord %s\n", yytext);}  // Usamos yytext aquí también      
+    | ID        {printf("\tvalord %s\n", yytext);}  // Usamos yytext aquí también aqui si que funciona porque yytext es el elemento ID leido      
     | '(' expr ')';
 
 %%
