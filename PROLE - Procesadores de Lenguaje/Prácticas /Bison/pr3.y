@@ -7,7 +7,7 @@
 
 static int nEtiqueta =0;
 
-void yyerror (const char *s);
+int yyerror (char*);
 extern int yylex();   
 
 %}
@@ -57,34 +57,77 @@ iter_stmt : MIENTRAS		{printf("LBL\n");}
 	MIENTRAS '(' expr ')'	{printf("\tsiciertovea LBL\n");}
 	;
 
-assig_stmt : ID			{printf("\tvalori %s\n", $1);}
-		ASIGN expr	{printf("\tasigna\n");
-				 free($1);}
+// El símbolo ID en la primera acción es $1, y el ID en la segunda acción es $1.
+// No usamos $$ = $1 porque no es necesario para el flujo de pila.
 
-	   | ID	SUM_ASIGN	{printf("\tvalori %s\n", $1);
-				 printf("\tvalord %s\n", $1);}
-		expr		{printf("\tsum\n");
-				 printf("\tasigna\n");
-				 free($1);}
+assig_stmt : ID	            {
+                            // ACCIÓN 1: Preparación de la Asignación
+                            // Se imprime VALORI, que es la dirección donde guardaremos el resultado.
+                            printf("\tvalori %s\n", $1);
+                        }
+		ASIGN expr	{
+                            // ACCIÓN 2: Finalización de la Asignación
+                            // El código de 'expr' se imprime justo aquí.
+                            printf("\tasigna\n");
+                            // Si se requiriera liberar la memoria del ID: free($1);
+                        }
+	   ;
 
-	   | ID	SUB_ASIGN	{printf("\tvalori %s\n", $1);
-				 printf("\tvalord %s\n",$1);} 
-		expr		{printf("\tsub\n");
-				 printf("\tasigna\n");
-				 free($1);}
+// --------------------------------------------------------------------------
 
-	   | ID	MUL_ASIGN	{printf("\tvalori %s\n", $1);
-				 printf("\tvalord %s\n", $1);} 
-		expr		{printf("\tmul\n");
-				 printf("\tasigna\n");
-				 free($1);}
+| ID SUM_ASIGN	        {
+                            // ACCIÓN 1: Preparación Compuesta
+                            // 1. VALORI (Dirección para guardar)
+                            printf("\tvalori %s\n", $1);
+                            // 2. VALORD (Valor actual como operando 1)
+                            printf("\tvalord %s\n", $1);
+                        }
+		expr		{
+                            // ACCIÓN 2: Finalización Compuesta
+                            // El código de 'expr' se imprime implícitamente aquí (operando 2).
+                            printf("\tsum\n");
+                            printf("\tasigna\n");
+                        }
 
-	   | ID	DIV_ASIGN	{printf("\tvalori %s\n", $1);
-				 printf("\tvalord %s\n", $1);} 
-		expr		{printf("\tdiv\n");
-				 printf("\tasigna\n");
-				 free($1);}
-			
+// --------------------------------------------------------------------------
+
+| ID SUB_ASIGN	        {
+                            // ACCIÓN 1: Preparación Compuesta
+                            printf("\tvalori %s\n", $1);
+                            printf("\tvalord %s\n", $1);
+                        }
+		expr		{
+                            // ACCIÓN 2: Finalización Compuesta
+                            printf("\tsub\n");
+                            printf("\tasigna\n");
+                        }
+
+// --------------------------------------------------------------------------
+
+| ID MUL_ASIGN	        {
+                            // ACCIÓN 1: Preparación Compuesta
+                            printf("\tvalori %s\n", $1);
+                            printf("\tvalord %s\n", $1);
+                        }
+		expr		{
+                            // ACCIÓN 2: Finalización Compuesta
+                            printf("\tmul\n");
+                            printf("\tasigna\n");
+                        }
+
+// --------------------------------------------------------------------------
+
+| ID DIV_ASIGN	        {
+                            // ACCIÓN 1: Preparación Compuesta
+                            printf("\tvalori %s\n", $1);
+                            printf("\tvalord %s\n", $1);
+                        }
+		expr		{
+                            // ACCIÓN 2: Finalización Compuesta
+                            printf("\tdiv\n");
+                            printf("\tasigna\n");
+                        }
+	;		
 
 expr : mult_expr
 	| mult_expr '+' expr	{printf("\tsum\n");}		
@@ -102,11 +145,13 @@ val : NUM		{printf("\tmete %d\n", $1);}
 
 %%
 
-void yyerror(const char *s){
-	fprintf(stderr, "Error de sintaxis %s\n", s);
+int yyerror(char *s){
+	fprintf(stderr, "%s\n", s);
+	exit(-1);
 }
 
 int main(){
 	yyparse();
 	return 0;
 }
+
