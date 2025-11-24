@@ -5,15 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Declaramos yytext para acceder al nombre del identificador directamente
+extern char *yytext; 
+extern int yylex();
+void yyerror (const char *s);
+
 int nEtiqueta = 0;
 
-// Función para obtener el siguiente número de etiqueta
 int siguienteEtiqueta() {
     return nEtiqueta++;
 }
-
-void yyerror (const char *s);
-extern int yylex();   
 %}
 
 %union{
@@ -22,12 +23,10 @@ extern int yylex();
    int eti; 
 }
 
-// Declaración de Tokens
-// Asegúrate de que en pr3.l devuelvas estos nombres (SUM_ASIGN, etc.)
 %token <numero>NUM <id>ID SI SINO IMPRIMIR MIENTRAS HACER SUM_ASIGN SUB_ASIGN MUL_ASIGN DIV_ASIGN ASIGN
 
-// Declaración de Tipos para no terminales (opcional, pero buena práctica)
-%type <eti> sel_stmt iter_stmt
+// Definimos tipos para los no terminales que mueven etiquetas
+%type <eti> if_cabecera iter_cabecera
 
 %left '+' '-' 
 %left '*' '/'
@@ -42,134 +41,92 @@ sntnc : sel_stmt
       | assig_stmt
       | print_stmt;
 
-// Nota: Quitamos el ';' extra al final de la acción
 print_stmt : IMPRIMIR '(' expr ')'  { printf("\tprint\n"); };
 
-// --- ESTRUCTURAS DE CONTROL CON ETIQUETAS ---
-// Usamos $<eti>$ para guardar enteros en acciones intermedias
-// Usamos $<eti>N para recuperar esos enteros
+// --- ESTRUCTURAS DE CONTROL (FACTORIZADAS) ---
 
-sel_stmt : SI '(' expr ')'      { 
-                                  int lbl = siguienteEtiqueta();
-                                  printf("\tsifalsovea LBL%d\n", lbl);
-                                  $<eti>$ = lbl; // Guardamos etiqueta SINO
-                                }
-           '{' list_sntncs '}'  
-           // Caso IF simple: Aquí terminaría, pero Bison necesita saber qué hacer con la etiqueta.
-           // Para esta práctica simplificada, si el if simple termina aquí, la etiqueta generada
-           // debería imprimirse. Como Bison reduce, esto es complejo de representar en una sola
-           // regla con la compuesta.
-           // Asumiremos que si no hay SINO, se imprime la etiqueta aquí.
-           // (Esta gramática asume la estructura completa para simplificar o requeriría reestructuración
-           // para soportar if simple e if-else robustamente sin conflictos shift/reduce).
-           
-         | SI '(' expr ')'      { 
-                                  int lbl = siguienteEtiqueta();
-                                  printf("\tsifalsovea LBL%d\n", lbl);
-                                  $<eti>$ = lbl; // Guardamos LBL_SINO (Posición $5)
-                                }
-           '{' list_sntncs '}'  {
-                                  int lbl_fin = siguienteEtiqueta();
-                                  printf("\tvea LBL%d\n", lbl_fin);
-                                  
-                                  // Imprimir etiqueta SINO (recuperada de la acción 1, pos $5)
-                                  printf("LBL%d\n", $<eti>5); 
-                                  
-                                  $<eti>$ = lbl_fin; // Guardamos LBL_FIN (Posición $8)
-                                }
-           SINO 
-           '{' list_sntncs '}'  {
-                                  // Imprimir etiqueta FIN (recuperada de la acción 2, pos $8)
-                                  printf("LBL%d\n", $<eti>9);
-                                };
+// 1. Factorizamos la cabecera del SI para evitar conflictos Reduce/Reduce
+// Esta regla maneja "si ( expr )" y genera el salto condicional.
+if_cabecera : SI '(' expr ')' {
+    int lbl = siguienteEtiqueta();
+    printf("\tsifalsovea LBL%d\n", lbl);
+    $$ = lbl; // Devolvemos la etiqueta para que la use sel_stmt
+};
 
-iter_stmt : MIENTRAS            {
-                                  int lbl_ini = siguienteEtiqueta();
-                                  printf("LBL%d\n", lbl_ini);
-                                  $<eti>$ = lbl_ini; // Guardar Inicio (Pos $2)
-                                }
-            '(' expr ')'        {
-                                  int lbl_fin = siguienteEtiqueta();
-                                  printf("\tsifalsovea LBL%d\n", lbl_fin);
-                                  $<eti>$ = lbl_fin; // Guardar Fin (Pos $5)
-                                }
+sel_stmt : if_cabecera '{' list_sntncs '}' {
+             // Caso SI simple: Imprimimos la etiqueta al final
+             printf("LBL%d\n", $1);
+           }
+         | if_cabecera '{' list_sntncs '}' SINO {
+             // Caso SI-SINO: Parte intermedia
+             int lbl_fin = siguienteEtiqueta();
+             printf("\tvea LBL%d\n", lbl_fin); // Salto para saltar el SINO
+             printf("LBL%d\n", $1);            // Etiqueta del SINO (donde cae si es falso el if)
+             $<eti>$ = lbl_fin;                // Guardamos la etiqueta final para después
+           } 
+           '{' list_sntncs '}' {
+             // Parte final del SINO
+             printf("LBL%d\n", $<eti>6);       // Imprimimos la etiqueta de fin
+           };
+
+
+// 2. Factorizamos la cabecera del MIENTRAS
+iter_cabecera : MIENTRAS {
+    int lbl = siguienteEtiqueta();
+    printf("LBL%d\n", lbl);
+    $$ = lbl;
+};
+
+iter_stmt : iter_cabecera '(' expr ')' {
+              int lbl_fin = siguienteEtiqueta();
+              printf("\tsifalsovea LBL%d\n", lbl_fin);
+              $<eti>$ = lbl_fin; // Guardamos etiqueta fin
+            } 
             '{' list_sntncs '}' {
-                                  // Recuperamos Inicio ($2) y Fin ($5)
-                                  printf("\tvea LBL%d\n", $<eti>2);
-                                  printf("LBL%d\n", $<eti>5);
-                                }
-          | HACER               {
-                                  int lbl_ini = siguienteEtiqueta();
-                                  printf("LBL%d\n", lbl_ini);
-                                  $<eti>$ = lbl_ini; // Guardar Inicio ($2)
-                                }
-            '{' list_sntncs '}' 
-            MIENTRAS '(' expr ')' {
-                                  // Recuperamos Inicio ($2)
-                                  printf("\tsiciertovea LBL%d\n", $<eti>2);
-                                };
+              printf("\tvea LBL%d\n", $1);      // Salto al inicio (iter_cabecera)
+              printf("LBL%d\n", $<eti>5);       // Etiqueta de salida
+            }
+          | HACER {
+              int lbl_ini = siguienteEtiqueta();
+              printf("LBL%d\n", lbl_ini);
+              $<eti>$ = lbl_ini;
+            } 
+            '{' list_sntncs '}' MIENTRAS '(' expr ')' {
+              printf("\tsiciertovea LBL%d\n", $<eti>2); // Salto al inicio si cierto
+            };
 
-// --- ASIGNACIONES CON GESTIÓN DE MEMORIA (STRDUP) ---
-// Usamos $<id>$ para guardar el char* en acciones intermedias
-// Usamos $<id>2 para recuperarlo en la acción final
 
-assig_stmt : ID {
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  $<id>$ = nombre; // Guardamos la copia
-                }
-             ASIGN expr {
-                  printf("\tasigna\n");
-                  free($<id>2); // Liberamos la copia recuperada
-                }
+// --- ASIGNACIONES (USANDO yytext) ---
+// Usamos yytext directamente en la acción intermedia. 
+// Como la acción se ejecuta INMEDIATAMENTE tras leer el ID, yytext es válido.
+// No hace falta strdup ni free.
 
-           | ID {
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  printf("\tvalord %s\n", nombre);
-                  $<id>$ = nombre; 
-                }
-             SUM_ASIGN expr {
-                  printf("\tsum\n");
-                  printf("\tasigna\n");
-                  free($<id>2);
-                }
+assig_stmt : ID { printf("\tvalori %s\n", yytext); } 
+             ASIGN expr { printf("\tasigna\n"); }
 
-           | ID {
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  printf("\tvalord %s\n", nombre);
-                  $<id>$ = nombre;
-                }
-             SUB_ASIGN expr {
-                  printf("\tsub\n");
-                  printf("\tasigna\n");
-                  free($<id>2);
-                }
+           | ID { 
+               printf("\tvalori %s\n", yytext); 
+               printf("\tvalord %s\n", yytext); 
+             } 
+             SUM_ASIGN expr { printf("\tsum\n"); printf("\tasigna\n"); }
 
-           | ID {
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  printf("\tvalord %s\n", nombre);
-                  $<id>$ = nombre;
-                }
-             MUL_ASIGN expr {
-                  printf("\tmul\n");
-                  printf("\tasigna\n");
-                  free($<id>2);
-                }
+           | ID { 
+               printf("\tvalori %s\n", yytext); 
+               printf("\tvalord %s\n", yytext); 
+             } 
+             SUB_ASIGN expr { printf("\tsub\n"); printf("\tasigna\n"); }
 
-           | ID {
-                  char *nombre = strdup($1);
-                  printf("\tvalori %s\n", nombre);
-                  printf("\tvalord %s\n", nombre);
-                  $<id>$ = nombre;
-                }
-             DIV_ASIGN expr {
-                  printf("\tdiv\n");
-                  printf("\tasigna\n");
-                  free($<id>2);
-                }
+           | ID { 
+               printf("\tvalori %s\n", yytext); 
+               printf("\tvalord %s\n", yytext); 
+             } 
+             MUL_ASIGN expr { printf("\tmul\n"); printf("\tasigna\n"); }
+
+           | ID { 
+               printf("\tvalori %s\n", yytext); 
+               printf("\tvalord %s\n", yytext); 
+             } 
+             DIV_ASIGN expr { printf("\tdiv\n"); printf("\tasigna\n"); }
            ;
 
 // --- EXPRESIONES ---
@@ -184,8 +141,9 @@ mult_expr : val
      | val '/' mult_expr    {printf("\tdiv\n");}
      ;       
 
+// Aquí también usamos yytext para evitar problemas con $1 no inicializado
 val : NUM       {printf("\tmete %d\n", $1);}        
-    | ID        {printf("\tvalord %s\n", $1);}        
+    | ID        {printf("\tvalord %s\n", yytext);}        
     | '(' expr ')';
 
 %%
