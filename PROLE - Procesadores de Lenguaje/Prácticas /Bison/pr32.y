@@ -116,17 +116,19 @@ assig_stmt : id_asig ASIGN expr { printf("\tasigna\n"); }
            ;
 
 expr : mult_expr
-     | mult_expr '+' expr   {printf("\tsum\n");}       
-     | mult_expr '-' expr   {printf("\tsub\n");}
+     | expr '+' mult_expr   {printf("\tsum\n");}       
+     | expr '-' mult_expr   {printf("\tsub\n");}
      ;   
+
  
+
 mult_expr : val 
-     | val '*' mult_expr    {printf("\tmul\n");}        
-     | val '/' mult_expr    {printf("\tdiv\n");}
+     | mult_expr '*' val    {printf("\tmul\n");}        
+     | mult_expr '/' val    {printf("\tdiv\n");}
      ;       
 
 val : NUM       {printf("\tmete %d\n", $1);}        
-    | ID        {printf("\tvalord %s\n", yytext);}  // Usamos yytext aquí también aqui si que funciona porque yytext es el elemento ID leido      
+    | ID        {printf("\tvalord %s\n", yytext);}       
     | '(' expr ')';
 
 %%
