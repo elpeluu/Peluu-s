@@ -1,71 +1,203 @@
-// El símbolo ID en la primera acción es $1, y el ID en la segunda acción es $1.
-// No usamos $$ = $1 porque no es necesario para el flujo de pila.
+// Analizador sintáctico de la pr3 
+// Autor: Diego Garda Porto
+%{
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-assig_stmt : ID	            {
-                            // ACCIÓN 1: Preparación de la Asignación
-                            // Se imprime VALORI, que es la dirección donde guardaremos el resultado.
-                            printf("\tvalori %s\n", $1);
-                        }
-		ASIGN expr	{
-                            // ACCIÓN 2: Finalización de la Asignación
-                            // El código de 'expr' se imprime justo aquí.
-                            printf("\tasigna\n");
-                            // Si se requiriera liberar la memoria del ID: free($1);
-                        }
-	   ;
+int nEtiqueta = 0;
 
-// --------------------------------------------------------------------------
+// Función para obtener el siguiente número de etiqueta
+int siguienteEtiqueta() {
+    return nEtiqueta++;
+}
 
-| ID SUM_ASIGN	        {
-                            // ACCIÓN 1: Preparación Compuesta
-                            // 1. VALORI (Dirección para guardar)
-                            printf("\tvalori %s\n", $1);
-                            // 2. VALORD (Valor actual como operando 1)
-                            printf("\tvalord %s\n", $1);
-                        }
-		expr		{
-                            // ACCIÓN 2: Finalización Compuesta
-                            // El código de 'expr' se imprime implícitamente aquí (operando 2).
-                            printf("\tsum\n");
-                            printf("\tasigna\n");
-                        }
+void yyerror (const char *s);
+extern int yylex();   
+%}
 
-// --------------------------------------------------------------------------
+%union{
+   int numero;
+   char *id; 
+   int eti; 
+}
 
-| ID SUB_ASIGN	        {
-                            // ACCIÓN 1: Preparación Compuesta
-                            printf("\tvalori %s\n", $1);
-                            printf("\tvalord %s\n", $1);
-                        }
-		expr		{
-                            // ACCIÓN 2: Finalización Compuesta
-                            printf("\tsub\n");
-                            printf("\tasigna\n");
-                        }
+// Declaración de Tokens
+%token <numero>NUM <id>ID SI SINO IMPRIMIR MIENTRAS HACER SUM_ASIGN SUB_ASIGN MUL_ASIGN DIV_ASIGN ASIGN
+// Declaración de Tipos para no terminales que propagan etiquetas
+%type <eti> sel_stmt iter_stmt
 
-// --------------------------------------------------------------------------
+%left '+' '-' 
+%left '*' '/'
 
-| ID MUL_ASIGN	        {
-                            // ACCIÓN 1: Preparación Compuesta
-                            printf("\tvalori %s\n", $1);
-                            printf("\tvalord %s\n", $1);
-                        }
-		expr		{
-                            // ACCIÓN 2: Finalización Compuesta
-                            printf("\tmul\n");
-                            printf("\tasigna\n");
-                        }
+%%
 
-// --------------------------------------------------------------------------
+list_sntncs : sntnc ';'
+            | sntnc ';' list_sntncs;
 
-| ID DIV_ASIGN	        {
-                            // ACCIÓN 1: Preparación Compuesta
-                            printf("\tvalori %s\n", $1);
-                            printf("\tvalord %s\n", $1);
-                        }
-		expr		{
-                            // ACCIÓN 2: Finalización Compuesta
-                            printf("\tdiv\n");
-                            printf("\tasigna\n");
-                        }
-	;
+sntnc : sel_stmt
+      | iter_stmt
+      | assig_stmt
+      | print_stmt;
+
+// Eliminado el ';' extra al final, ya que list_sntncs lo añade
+print_stmt : IMPRIMIR '(' expr ')'  { printf("\tprint\n"); };
+
+// --- ESTRUCTURAS DE CONTROL CON ETIQUETAS ---
+
+sel_stmt : SI '(' expr ')'      { 
+                                  // Acción 1: Generar LBL_SINO
+                                  int lbl = siguienteEtiqueta();
+                                  printf("\tsifalsovea LBL%d\n", lbl);
+                                  $$ = lbl; // Guardar LBL_SINO en la pila ($5)
+                                }
+           '{' list_sntncs '}'  
+           
+           // Alternativa 1: IF SIMPLE (Sin SINO)
+           // En este caso, la etiqueta generada arriba es el final.
+           // Como Bison hace reducción, necesitamos dividirlo o gestionar el caso.
+           // Para simplificar con tu estructura actual, asumimos la estructura completa abajo.
+           
+         | SI '(' expr ')'      { 
+                                  // Acción 1: Generar LBL_SINO
+                                  int lbl = siguienteEtiqueta();
+                                  printf("\tsifalsovea LBL%d\n", lbl);
+                                  $$ = lbl; // Guardar LBL_SINO ($5)
+                                }
+           '{' list_sntncs '}'  {
+                                  // Acción 2: Generar LBL_FIN
+                                  int lbl_fin = siguienteEtiqueta();
+                                  printf("\tvea LBL%d\n", lbl_fin);
+                                  
+                                  // Imprimir etiqueta SINO (recuperada de $5)
+                                  printf("LBL%d\n", $5); 
+                                  
+                                  $$ = lbl_fin; // Guardar LBL_FIN ($8)
+                                }
+           SINO 
+           '{' list_sntncs '}'  {
+                                  // Acción Final: Imprimir etiqueta FIN (recuperada de $8)
+                                  printf("LBL%d\n", $8);
+                                };
+
+iter_stmt : MIENTRAS            {
+                                  // Acción 1: Etiqueta Inicio
+                                  int lbl_ini = siguienteEtiqueta();
+                                  printf("LBL%d\n", lbl_ini);
+                                  $$ = lbl_ini; // Guardar LBL_INICIO ($2)
+                                }
+            '(' expr ')'        {
+                                  // Acción 2: Etiqueta Fin
+                                  int lbl_fin = siguienteEtiqueta();
+                                  printf("\tsifalsovea LBL%d\n", lbl_fin);
+                                  $$ = lbl_fin; // Guardar LBL_FIN ($5)
+                                }
+            '{' list_sntncs '}' {
+                                  // Acción Final
+                                  // Recuperamos LBL_INICIO de $2 y LBL_FIN de $5
+                                  printf("\tvea LBL%d\n", $2);
+                                  printf("LBL%d\n", $5);
+                                }
+          | HACER               {
+                                  int lbl_ini = siguienteEtiqueta();
+                                  printf("LBL%d\n", lbl_ini);
+                                  $$ = lbl_ini; // Guardar LBL_INICIO ($2)
+                                }
+            '{' list_sntncs '}' 
+            MIENTRAS '(' expr ')' {
+                                  // Recuperamos LBL_INICIO de $2
+                                  printf("\tsiciertovea LBL%d\n", $2);
+                                };
+
+// --- ASIGNACIONES CON GESTIÓN DE MEMORIA (STRDUP) ---
+// Nota: Usamos acciones intermedias INMEDIATAMENTE después del ID
+// para copiar la cadena antes de que Flex la sobrescriba.
+
+assig_stmt : ID {
+                  // COPIA SEGURA: Guardamos el nombre antes de leer el operador
+                  char *nombre = strdup($1);
+                  printf("\tvalori %s\n", nombre);
+                  $$ = (int)nombre; // Guardamos el puntero (cast a int si el tipo no coincide, o usar un tipo <id>)
+                  // NOTA: Para que esto compile limpio, idealmente assig_stmt debería tener tipo <id> o usar un cast.
+                  // Asumiremos que el compilador permite pasar el puntero en $$.
+                }
+             ASIGN expr {
+                  printf("\tasigna\n");
+                  free((char*)$2); // Liberamos la copia guardada en la acción 2 ($2)
+                }
+
+           | ID {
+                  char *nombre = strdup($1);
+                  printf("\tvalori %s\n", nombre);
+                  printf("\tvalord %s\n", nombre);
+                  $$ = (int)nombre; 
+                }
+             SUM_ASIGN expr {
+                  printf("\tsum\n");
+                  printf("\tasigna\n");
+                  free((char*)$2);
+                }
+
+           | ID {
+                  char *nombre = strdup($1);
+                  printf("\tvalori %s\n", nombre);
+                  printf("\tvalord %s\n", nombre);
+                  $$ = (int)nombre;
+                }
+             SUB_ASIGN expr {
+                  printf("\tsub\n");
+                  printf("\tasigna\n");
+                  free((char*)$2);
+                }
+
+           | ID {
+                  char *nombre = strdup($1);
+                  printf("\tvalori %s\n", nombre);
+                  printf("\tvalord %s\n", nombre);
+                  $$ = (int)nombre;
+                }
+             MUL_ASIGN expr {
+                  printf("\tmul\n");
+                  printf("\tasigna\n");
+                  free((char*)$2);
+                }
+
+           | ID {
+                  char *nombre = strdup($1);
+                  printf("\tvalori %s\n", nombre);
+                  printf("\tvalord %s\n", nombre);
+                  $$ = (int)nombre;
+                }
+             DIV_ASIGN expr {
+                  printf("\tdiv\n");
+                  printf("\tasigna\n");
+                  free((char*)$2);
+                }
+           ;
+
+// --- EXPRESIONES ---
+
+expr : mult_expr
+     | mult_expr '+' expr   {printf("\tsum\n");}       
+     | mult_expr '-' expr   {printf("\tsub\n");}
+     ;   
+ 
+mult_expr : val 
+     | val '*' mult_expr    {printf("\tmul\n");}        
+     | val '/' mult_expr    {printf("\tdiv\n");}
+     ;       
+
+val : NUM       {printf("\tmete %d\n", $1);}        
+    | ID        {printf("\tvalord %s\n", $1);}        
+    | '(' expr ')';
+
+%%
+
+void yyerror(const char *s){
+    fprintf(stderr, "Error de sintaxis: %s\n", s);
+}
+
+int main(){
+    yyparse();
+    return 0;
+}
