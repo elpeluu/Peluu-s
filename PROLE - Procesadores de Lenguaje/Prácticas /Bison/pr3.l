@@ -1,3 +1,5 @@
+// Archivo .l FINAL correcto 
+
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,12 +21,12 @@
 "/="                        return DIV_ASIGN;
 "="                         return ASIGN;
 
-[0-9]+                      { yylval.numero = atoi(yytext); return NUM; }
-[a-zA-Z_][a-zA-Z_0-9]* { return ID; }
+[0-9]+                      {yylval.numero = atoi(yytext); return NUM; }
+[a-zA-Z_][a-zA-Z_0-9]*	    {yylval.id = strdup(yytext); return ID;}
 
-[ \t\n\r]+                  ; /* Ignorar espacios */
-"//".* ; /* Comentarios linea */
-"/*"([^*]|(\*+[^*/]))*\*+"*/" ; /* Comentarios bloque */
+[ \t\n\r]+                  ;		/* Ignorar espacios */
+"//".*			    ;		/* Comentarios linea */
+"/*"([^*]|(\*+[^*/]))*\*+"*/" ;		/* Comentarios bloque */
 
 .                           return yytext[0];
 
