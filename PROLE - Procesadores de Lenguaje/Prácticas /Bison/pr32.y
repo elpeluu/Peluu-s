@@ -1,5 +1,5 @@
 // Analizador sintáctico de la pr3 - VERSION CORRECTA SOBRE LA QUE TRABAJAR 
-// Autor: Diego Garda Porto
+// Autor: Diego Garda Porto - VERSION FINAL 
 %{
 #include <stdio.h>
 #include <stdlib.h>
