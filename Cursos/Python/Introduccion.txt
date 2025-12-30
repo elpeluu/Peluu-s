@@ -1,0 +1,3 @@
+# Python - Santander Open Academy
+
+Curso impartido por la Santander Open Academy sobre los conceptos básicos de este lenguaje permitiéndome adentrarme en este mundo enfocado en la el análisis y la ciencia de datos, rama que más me interesa dentro del mundo de la informática y a la que me quiero dedicar profesionalmente. 
