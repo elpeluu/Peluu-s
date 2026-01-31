@@ -1,9 +1,9 @@
 // --- 1. CONFIGURACIÓN ---
-const GEMINI_API_KEY = "AIzaSyCmDDblFEPch1M-cNv2Ly6qJGba7_v2zD8"; 
-const WHATSAPP_TOKEN = "EAAbZCzLUXPCcBQmH1sp6DeL1ZAHd6BqgBWkriC4fw6Pa4VGIR7u8D92sQ7wFZCyHx1WC9EV6GL2X7JZCqvzBF6eJH5MZAuJSdai6tNisZC7JjrbLAWih0puMsMDiZAtfSICCcvtCjF0E9QVLvdkUxAODrMm8yHF0eunGnt5SxFmJ380hEb33ztQhUJLrHAMX0oZBMAZDZD"; 
-const PHONE_NUMBER_ID = "937257522808888"; 
-const VERIFY_TOKEN = "peluu_205"; 
-const SPREADSHEET_ID = "1EE2BLnaT3hxw5pko4wkextEXB7gl5Pao4oGJ-AF_u2c";
+const GEMINI_API_KEY = "****"; 
+const WHATSAPP_TOKEN = "****"; 
+const PHONE_NUMBER_ID = "***"; 
+const VERIFY_TOKEN = "****"; 
+const SPREADSHEET_ID = "****";
 
 // --- 2. RECEPCIÓN Y ORQUESTACIÓN ---
 function doPost(e) {
