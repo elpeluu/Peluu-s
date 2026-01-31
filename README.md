@@ -5,4 +5,5 @@ Repositorio con algunos de los proyectos/programas desarrollados durante mi épo
 - GESTION INFO - Gestión de la Información
 - ORG Y GEST - Organización y Gestión de Empresas
 - PROLE - Procesadores de Lenguaje
-- 
+- Cursos (Power BI, Python, Competencias Digitales CYL)
+- TON - Asistente de IA
