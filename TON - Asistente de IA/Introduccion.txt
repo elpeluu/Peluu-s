@@ -1,0 +1,5 @@
+TON es un asistente de IA de lectura configurado sobre una base de datos de Google Sheets, mediante un script en la extensión Apps Scripts. 
+
+El archivo ton.txt contiene el contenido del código de dicho agente de IA. 
+
+Este agente está implementado en WhatsApp a través de WhatsApp Bussiness y utiliza el modelo Gemini 2.5 Flash mediante una API de Gemini. 
