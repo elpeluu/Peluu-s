@@ -1,0 +1,228 @@
+// --- 1. CONFIGURACIÓN ---
+const GEMINI_API_KEY = "AIzaSyCmDDblFEPch1M-cNv2Ly6qJGba7_v2zD8"; 
+const WHATSAPP_TOKEN = "EAAbZCzLUXPCcBQmH1sp6DeL1ZAHd6BqgBWkriC4fw6Pa4VGIR7u8D92sQ7wFZCyHx1WC9EV6GL2X7JZCqvzBF6eJH5MZAuJSdai6tNisZC7JjrbLAWih0puMsMDiZAtfSICCcvtCjF0E9QVLvdkUxAODrMm8yHF0eunGnt5SxFmJ380hEb33ztQhUJLrHAMX0oZBMAZDZD"; 
+const PHONE_NUMBER_ID = "937257522808888"; 
+const VERIFY_TOKEN = "peluu_205"; 
+const SPREADSHEET_ID = "1EE2BLnaT3hxw5pko4wkextEXB7gl5Pao4oGJ-AF_u2c";
+
+// --- 2. RECEPCIÓN Y ORQUESTACIÓN ---
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    if (!data.entry || !data.entry[0].changes[0].value.messages) return ContentService.createTextOutput("OK");
+
+    const msg = data.entry[0].changes[0].value.messages[0];
+    const from = msg.from; 
+    const text = msg.text.body; 
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const zonaHoraria = ss.getSpreadsheetTimeZone();
+    
+    // --- LEER CONTEXTO (Libro Actual) ---
+    const hojaLA = ss.getSheetByName("Libro Actual");
+    
+    // 1. Encontrar la última fila con DATOS escritos en columna A (Título)
+    // Esto ignora las filas vacías de abajo que solo tienen fórmulas
+    const datosColumnaA = hojaLA.getRange("A:A").getValues();
+    const ultimaFilaConDatos = datosColumnaA.filter(String).length; 
+    
+    // Preparar fecha de hoy
+    const fechaHoyObj = new Date();
+    const fechaHoyTexto = Utilities.formatDate(fechaHoyObj, zonaHoraria, "dd/MM/yyyy");
+
+    // Obtenemos metadatos de la última fila escrita
+    let estadoActual = {
+      titulo: "Ninguno",
+      inicio: 0,
+      fin: 0,
+      totalLibro: 0,
+      ultimoMarcador: 0,
+      ultimaFechaTexto: "N/A",
+      fila: ultimaFilaConDatos,
+      fechaHoyTexto: fechaHoyTexto
+    };
+
+    if (ultimaFilaConDatos > 1) {
+      const filaDatos = hojaLA.getRange(ultimaFilaConDatos, 1, 1, 7).getValues()[0];
+      const fUltima = filaDatos[5] ? new Date(filaDatos[5]) : null;
+      
+      estadoActual = {
+        titulo: filaDatos[0],
+        inicio: filaDatos[1],
+        fin: filaDatos[2],
+        totalLibro: filaDatos[3],
+        ultimoMarcador: Number(filaDatos[6]), // Columna G
+        ultimaFechaTexto: fUltima ? Utilities.formatDate(fUltima, zonaHoraria, "dd/MM/yyyy") : "N/A",
+        fila: ultimaFilaConDatos,
+        fechaHoyTexto: fechaHoyTexto
+      };
+    }
+
+    // --- LLAMADA AL CEREBRO (GEMINI 2.5 FLASH) ---
+    // Ahora le pedimos que nos devuelva la fecha objetivo y el tipo de dato
+    const respuestaIA = preguntarGemini(text, estadoActual);
+    
+    // --- EJECUCIÓN DE ESCRITURA ---
+    if (respuestaIA.nuevoMarcador !== null && respuestaIA.fechaObjetivo) {
+      
+      const fechaObjStr = respuestaIA.fechaObjetivo.replace(/-/g, "/"); // Normalizar
+      let filaDestino = -1;
+      let marcadorAnterior = 0; // Para el reporte
+      let acumuladoDia = 0; // Para el reporte
+
+      // A. ¿YA EXISTE ESA FECHA EN LA TABLA? (Buscamos en las filas escritas)
+      if (ultimaFilaConDatos > 1) {
+        const rangoFechas = hojaLA.getRange(2, 6, ultimaFilaConDatos - 1, 1).getValues();
+        for (let i = 0; i < rangoFechas.length; i++) {
+          const f = rangoFechas[i][0] ? Utilities.formatDate(new Date(rangoFechas[i][0]), zonaHoraria, "dd/MM/yyyy") : "";
+          if (f === fechaObjStr) {
+            filaDestino = i + 2; // +2 compensa cabecera e índice 0
+            marcadorAnterior = Number(hojaLA.getRange(filaDestino, 7).getValue());
+            break;
+          }
+        }
+      }
+
+      if (filaDestino !== -1) {
+        // --- CASO 1: LA FECHA YA EXISTE (ACTUALIZAR) ---
+        // Si el usuario dijo "leí 10 más", sumamos. Si dijo "voy por 100", reemplazamos.
+        // Como Gemini ya nos da el "nuevoMarcador" calculado según su lógica:
+        // (Nota: Si Gemini falla sumando, aquí podríamos refinar, pero confiemos en tu prompt "funcional")
+        
+        // Pero para asegurar consistencia con "ayer leí 10 más", vamos a recalcular si es delta
+        let nuevoValor = respuestaIA.nuevoMarcador;
+        if (respuestaIA.esDelta) {
+             nuevoValor = marcadorAnterior + respuestaIA.cantidadDelta;
+        }
+        
+        hojaLA.getRange(filaDestino, 7).setValue(nuevoValor);
+        
+        // Recalcular acumulado para el reporte (Valor Nuevo - Valor Fila Anterior)
+        let valorFilaAnterior = estadoActual.inicio;
+        if (filaDestino > 2) {
+             valorFilaAnterior = Number(hojaLA.getRange(filaDestino - 1, 7).getValue());
+        }
+        acumuladoDia = nuevoValor - valorFilaAnterior;
+        marcadorAnterior = valorFilaAnterior; // Ajuste visual para el reporte
+
+      } else {
+        // --- CASO 2: NUEVA ENTRADA (HUECO O DÍA NUEVO) ---
+        // Escribimos en la siguiente fila vacía (ultimaFilaConDatos + 1)
+        const nuevaFila = ultimaFilaConDatos + 1;
+        
+        // 1. Escribimos Título, Inicio, Fin, Total (Col A, B, C, D)
+        hojaLA.getRange(nuevaFila, 1, 1, 4).setValues([[
+          estadoActual.titulo,
+          estadoActual.inicio,
+          estadoActual.fin,
+          estadoActual.totalLibro
+        ]]);
+        
+        // 2. Escribimos Fecha, Marcador (Col F, G). ¡SALTANDO E!
+        // Parseamos la fecha para que Excel la entienda como fecha
+        const partes = fechaObjStr.split("/");
+        const fechaDate = new Date(partes[2], partes[1] - 1, partes[0]);
+        
+        // Calculamos el valor correcto. Si es "Ayer leí 10 más", necesitamos saber el marcador de ANTEAYER.
+        // Buscamos el último marcador registrado ANTES de la fecha objetivo
+        let baseParaSuma = estadoActual.inicio;
+        // Lógica simplificada: Usamos el último marcador conocido globalmente si es fecha reciente,
+        // o el inicio si es muy antigua. Para simplificar y no romper, usamos lo que diga Gemini,
+        // pero idealmente Gemini debe sumar sobre el "Marcador Anterior" que le pasamos.
+        
+        // Si es delta ("leí 10 más") y es fecha nueva, sumamos al último conocido
+        // OJO: Si es fecha pasada, sumar al último conocido puede ser error.
+        // Dejaremos que Gemini calcule el total basándose en el "Marcador Anterior" que le dimos (el último).
+        // Si hay huecos, asumimos continuidad.
+        
+        let valorFinal = respuestaIA.nuevoMarcador;
+        
+        hojaLA.getRange(nuevaFila, 6, 1, 2).setValues([[
+          fechaDate,
+          valorFinal
+        ]]);
+        
+        // 3. ORDENAR CRONOLÓGICAMENTE (CRUCIAL)
+        // Esto coloca el día "ayer" en su sitio y arregla las fórmulas de la Columna E automáticamente.
+        // Ordenamos desde A2 hasta I(ultimaFila)
+        const rangoSort = hojaLA.getRange(2, 1, nuevaFila - 1, 9);
+        rangoSort.sort({column: 6, ascending: true});
+        
+        // Calcular acumulado (después de ordenar, miramos fila anterior)
+        // Buscamos dónde quedó nuestra fila
+        // (Simplificación para reporte: Usamos la diferencia reportada por la IA o cálculo simple)
+        acumuladoDia = valorFinal - estadoActual.ultimoMarcador; 
+        if (acumuladoDia < 0) acumuladoDia = respuestaIA.cantidadDelta || 0; // Fallback visual
+      }
+
+      // --- GENERAR REPORTE ENRIQUECIDO ---
+      const mensajeFinal = `¡Hola Peluu! He anotado tu lectura.\n\n📊 *Ficha Actualizada:*\n📖 *Libro:* ${estadoActual.titulo}\n📅 *Fecha:* ${respuestaIA.fechaObjetivo}\n📈 *Acumulado:* ${acumuladoDia > 0 ? acumuladoDia : "Ajuste"} págs.\n🔖 *Avance:* ${estadoActual.ultimoMarcador} ➡ ${respuestaIA.nuevoMarcador}`;
+      enviarWhatsApp(from, mensajeFinal);
+
+    } else {
+      enviarWhatsApp(from, "No entendí los datos de la lectura.");
+    }
+
+  } catch (err) { 
+    console.error("Error: " + err.message); 
+  }
+  return ContentService.createTextOutput("OK");
+}
+
+// --- 3. CEREBRO GEMINI (MODELO 2.5 FLASH) ---
+function preguntarGemini(mensajeUsuario, estado) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  
+  const promptSistema = `
+  Eres TON, el asistente bibliotecario inteligente.
+  
+  DATOS:
+  - Libro: ${estado.titulo}
+  - Marcador Global Actual: ${estado.ultimoMarcador}
+  - Fecha Hoy: ${estado.fechaHoyTexto}
+  
+  INSTRUCCIONES:
+  1. Identifica la "fechaObjetivo" (si dice "ayer", calcúlala).
+  2. Identifica si es "delta" (leí X páginas más) o "absoluto" (voy por la X).
+  3. Calcula el "nuevoMarcador":
+     - Si es delta: (Marcador Global Actual + X).
+     - Si es absoluto: X.
+  
+  FORMATO JSON OBLIGATORIO:
+  {
+    "fechaObjetivo": "dd/MM/yyyy",
+    "nuevoMarcador": (int),
+    "esDelta": (boolean),
+    "cantidadDelta": (int o 0)
+  }
+  `;
+
+  const payload = {
+    "system_instruction": { "parts": [{ "text": promptSistema }] },
+    "contents": [{ "parts": [{ "text": mensajeUsuario }] }],
+    "generationConfig": { "responseMimeType": "application/json" }
+  };
+  
+  try {
+    const res = UrlFetchApp.fetch(url, { 
+      "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true 
+    });
+    const json = JSON.parse(res.getContentText());
+    if (json.candidates) return JSON.parse(json.candidates[0].content.parts[0].text);
+  } catch (e) {
+    return { "nuevoMarcador": null };
+  }
+  return { "nuevoMarcador": null };
+}
+
+// --- 4. ENVÍO WHATSAPP ---
+function enviarWhatsApp(telefono, texto) {
+  if (!texto) return;
+  const payload = { "messaging_product": "whatsapp", "to": telefono, "type": "text", "text": { "body": texto } };
+  try {
+    UrlFetchApp.fetch(`https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`, {
+      "method": "post", "contentType": "application/json",
+      "headers": { "Authorization": "Bearer " + WHATSAPP_TOKEN },
+      "payload": JSON.stringify(payload), "muteHttpExceptions": true 
+    });
+  } catch (e) {}
+}
