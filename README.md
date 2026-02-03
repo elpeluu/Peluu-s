@@ -7,3 +7,5 @@ Repositorio con algunos de los proyectos/programas desarrollados durante mi épo
 - PROLE - Procesadores de Lenguaje
 - Cursos (Power BI, Python, Competencias Digitales CYL)
 - TON - Asistente de IA
+- Recursos IA
+  
